@@ -13,4 +13,4 @@ platform: x64
 build_script:
   - cmake -G "%CMAKE_GENERATOR%" .
   - cmake --build . --config Release
-  - Release\mustache-unit-tests.exe
+  - tests\Release\mustache-unit-tests.exe
