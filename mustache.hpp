@@ -209,11 +209,11 @@ public:
     basic_data(const basic_data& dat) = default;
 
     // Move
-    basic_data(basic_data&& dat) : type_{dat.type_}, storage_{std::move(dat.storage_)} {
+    basic_data(basic_data&& dat) noexcept : type_{dat.type_}, storage_{std::move(dat.storage_)} {
         dat.type_ = type::invalid;
     }
 
-    basic_data& operator= (basic_data&& dat) {
+    basic_data& operator= (basic_data&& dat) noexcept {
         if (this != &dat) {
             storage_ = std::move(dat.storage_);
             type_ = dat.type_;
