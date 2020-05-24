@@ -197,21 +197,8 @@ public:
     basic_data(const typename string_type::value_type* string) : basic_data(string_type{string}) {}
     basic_data(const basic_object<string_type>& obj) : type_{type::object}, storage_{obj} {}
     basic_data(const basic_list<string_type>& l) : type_{type::list}, storage_{l} {}
-    basic_data(type t) : type_{t} {
-        switch (type_) {
-            case type::object:
-                storage_.template emplace<basic_object<string_type>>();
-                break;
-            case type::string:
-                storage_.template emplace<string_type>();
-                break;
-            case type::list:
-                storage_.template emplace<basic_list<string_type>>();
-                break;
-            default:
-                break;
-        }
-    }
+    basic_data(type t);
+
     basic_data(const string_type& name, const basic_data& var) : basic_data() {
         set(name, var);
     }
@@ -1115,6 +1102,23 @@ private:
     component<string_type> root_component_;
     escape_handler escape_;
 };
+
+template <typename string_type>
+basic_data<string_type>::basic_data(type t) : type_{t} {
+    switch (type_) {
+        case type::object:
+            storage_.template emplace<basic_object<string_type>>();
+            break;
+        case type::string:
+            storage_.template emplace<string_type>();
+            break;
+        case type::list:
+            storage_.template emplace<basic_list<string_type>>();
+            break;
+        default:
+            break;
+    }
+}
 
 using mustache = basic_mustache<std::string>;
 using data = basic_data<mustache::string_type>;
