@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(mustache)
-set( CMAKE_VERBOSE_MAKEFILE on )
 add_library(mustache INTERFACE)
 
 target_compile_features(mustache INTERFACE cxx_std_17)
