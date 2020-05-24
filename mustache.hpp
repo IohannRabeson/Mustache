@@ -192,34 +192,18 @@ public:
     };
 
     // Construction
-    basic_data() : basic_data(type::object) {}
-    basic_data(const string_type& string) : type_{type::string}, storage_{string} {}
-    basic_data(const typename string_type::value_type* string) : basic_data(string_type{string}) {}
-    basic_data(const basic_object<string_type>& obj) : type_{type::object}, storage_{obj} {}
-    basic_data(const basic_list<string_type>& l) : type_{type::list}, storage_{l} {}
-    basic_data(type t) : type_{t} {
-        switch (type_) {
-            case type::object:
-                storage_.template emplace<basic_object<string_type>>();
-                break;
-            case type::string:
-                storage_.template emplace<string_type>();
-                break;
-            case type::list:
-                storage_.template emplace<basic_list<string_type>>();
-                break;
-            default:
-                break;
-        }
-    }
-    basic_data(const string_type& name, const basic_data& var) : basic_data() {
-        set(name, var);
-    }
-    basic_data(const basic_partial<string_type>& p) : type_{type::partial}, storage_{p} {}
-    basic_data(const basic_lambda<string_type>& l) : type_{type::lambda}, storage_{l} {}
-    basic_data(const basic_lambda2<string_type>& l) : type_{type::lambda2}, storage_{l} {}
-    basic_data(const basic_lambda_t<string_type>& l) : type_{l.is_type1() ? type::lambda : type::lambda2}, storage_{l} {}
-    basic_data(bool b) : type_{b ? type::bool_true : type::bool_false} {}
+    basic_data();
+    basic_data(const string_type& string);
+    basic_data(const typename string_type::value_type* string);
+    basic_data(const basic_object<string_type>& obj);
+    basic_data(const basic_list<string_type>& l);
+    basic_data(type t);
+    basic_data(const string_type& name, const basic_data& var);
+    basic_data(const basic_partial<string_type>& p);
+    basic_data(const basic_lambda<string_type>& l);
+    basic_data(const basic_lambda2<string_type>& l);
+    basic_data(const basic_lambda_t<string_type>& l);
+    basic_data(bool b);
 
     // Copying
     basic_data(const basic_data& dat) = default;
@@ -352,6 +336,59 @@ private:
 
     variant_type storage_;
 };
+
+template <typename string_type>
+basic_data<string_type>::basic_data() : basic_data(type::object) {}
+
+template <typename string_type>
+basic_data<string_type>::basic_data(const string_type& string) : type_{type::string}, storage_{string} {}
+
+template <typename string_type>
+basic_data<string_type>::basic_data(const typename string_type::value_type* string) : basic_data(string_type{string}) {}
+
+template <typename string_type>
+basic_data<string_type>::basic_data(const basic_object<string_type>& obj) : type_{type::object}, storage_{obj} {}
+
+template <typename string_type>
+basic_data<string_type>::basic_data(const basic_list<string_type>& l) : type_{type::list}, storage_{l} {}
+
+template <typename string_type>
+basic_data<string_type>::basic_data(type t) : type_{t} {
+    switch (type_)
+    {
+        case type::object:
+            storage_.template emplace<basic_object<string_type>>();
+            break;
+        case type::string:
+            storage_.template emplace<string_type>();
+            break;
+        case type::list:
+            storage_.template emplace<basic_list<string_type>>();
+            break;
+        default:
+            break;
+    }
+}
+
+template <typename string_type>
+basic_data<string_type>::basic_data(const string_type& name, const basic_data& var) : basic_data() {
+    set(name, var);
+}
+
+template <typename string_type>
+basic_data<string_type>::basic_data(const basic_partial<string_type>& p) : type_{type::partial}, storage_{p} {}
+
+template <typename string_type>
+basic_data<string_type>::basic_data(const basic_lambda<string_type>& l) : type_{type::lambda}, storage_{l} {}
+
+template <typename string_type>
+basic_data<string_type>::basic_data(const basic_lambda2<string_type>& l) : type_{type::lambda2}, storage_{l} {}
+
+template <typename string_type>
+basic_data<string_type>::basic_data(const basic_lambda_t<string_type>& l) : type_{l.is_type1() ? type::lambda : type::lambda2}, storage_{l} {}
+
+template <typename string_type>
+basic_data<string_type>::basic_data(bool b) : type_{b ? type::bool_true : type::bool_false} {}
 
 template <typename string_type>
 class delimiter_set {
