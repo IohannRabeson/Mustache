@@ -38,6 +38,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <vector>
+#include <variant>
 
 namespace kainjow {
 namespace mustache {
@@ -146,6 +147,9 @@ public:
         }
     }
 
+    basic_lambda_t(basic_lambda_t&&) = default;
+    basic_lambda_t& operator = (basic_lambda_t&&) = default;
+
     string_type operator()(const string_type& text) const {
         return (*type1_)(text);
     }
@@ -188,106 +192,33 @@ public:
     };
 
     // Construction
-    basic_data() : basic_data(type::object) {
-    }
-    basic_data(const string_type& string) : type_{type::string} {
-        str_.reset(new string_type(string));
-    }
-    basic_data(const typename string_type::value_type* string) : type_{type::string} {
-        str_.reset(new string_type(string));
-    }
-    basic_data(const basic_object<string_type>& obj) : type_{type::object} {
-        obj_.reset(new basic_object<string_type>(obj));
-    }
-    basic_data(const basic_list<string_type>& l) : type_{type::list} {
-        list_.reset(new basic_list<string_type>(l));
-    }
-    basic_data(type t) : type_{t} {
-        switch (type_) {
-            case type::object:
-                obj_.reset(new basic_object<string_type>);
-                break;
-            case type::string:
-                str_.reset(new string_type);
-                break;
-            case type::list:
-                list_.reset(new basic_list<string_type>);
-                break;
-            default:
-                break;
-        }
-    }
-    basic_data(const string_type& name, const basic_data& var) : basic_data{} {
+    basic_data() : basic_data(type::object) {}
+    basic_data(const string_type& string) : type_{type::string}, storage_{string} {}
+    basic_data(const typename string_type::value_type* string) : basic_data(string_type{string}) {}
+    basic_data(const basic_object<string_type>& obj) : type_{type::object}, storage_{obj} {}
+    basic_data(const basic_list<string_type>& l) : type_{type::list}, storage_{l} {}
+    basic_data(type t);
+
+    basic_data(const string_type& name, const basic_data& var) : basic_data() {
         set(name, var);
     }
-    basic_data(const basic_partial<string_type>& p) : type_{type::partial} {
-        partial_.reset(new basic_partial<string_type>(p));
-    }
-    basic_data(const basic_lambda<string_type>& l) : type_{type::lambda} {
-        lambda_.reset(new basic_lambda_t<string_type>(l));
-    }
-    basic_data(const basic_lambda2<string_type>& l) : type_{type::lambda2} {
-        lambda_.reset(new basic_lambda_t<string_type>(l));
-    }
-    basic_data(const basic_lambda_t<string_type>& l) {
-        if (l.is_type1()) {
-            type_ = type::lambda;
-        } else if (l.is_type2()) {
-            type_ = type::lambda2;
-        }
-        lambda_.reset(new basic_lambda_t<string_type>(l));
-    }
-    basic_data(bool b) : type_{b ? type::bool_true : type::bool_false} {
-    }
+    basic_data(const basic_partial<string_type>& p) : type_{type::partial}, storage_{p} {}
+    basic_data(const basic_lambda<string_type>& l) : type_{type::lambda}, storage_{l} {}
+    basic_data(const basic_lambda2<string_type>& l) : type_{type::lambda2}, storage_{l} {}
+    basic_data(const basic_lambda_t<string_type>& l) : type_{l.is_type1() ? type::lambda : type::lambda2}, storage_{l} {}
+    basic_data(bool b) : type_{b ? type::bool_true : type::bool_false} {}
 
     // Copying
-    basic_data(const basic_data& dat) : type_(dat.type_) {
-        if (dat.obj_) {
-            obj_.reset(new basic_object<string_type>(*dat.obj_));
-        } else if (dat.str_) {
-            str_.reset(new string_type(*dat.str_));
-        } else if (dat.list_) {
-            list_.reset(new basic_list<string_type>(*dat.list_));
-        } else if (dat.partial_) {
-            partial_.reset(new basic_partial<string_type>(*dat.partial_));
-        } else if (dat.lambda_) {
-            lambda_.reset(new basic_lambda_t<string_type>(*dat.lambda_));
-        }
-    }
+    basic_data(const basic_data& dat) = default;
 
     // Move
-    basic_data(basic_data&& dat) : type_{dat.type_} {
-        if (dat.obj_) {
-            obj_ = std::move(dat.obj_);
-        } else if (dat.str_) {
-            str_ = std::move(dat.str_);
-        } else if (dat.list_) {
-            list_ = std::move(dat.list_);
-        } else if (dat.partial_) {
-            partial_ = std::move(dat.partial_);
-        } else if (dat.lambda_) {
-            lambda_ = std::move(dat.lambda_);
-        }
+    basic_data(basic_data&& dat) : type_{dat.type_}, storage_{std::move(dat.storage_)} {
         dat.type_ = type::invalid;
     }
+
     basic_data& operator= (basic_data&& dat) {
         if (this != &dat) {
-            obj_.reset();
-            str_.reset();
-            list_.reset();
-            partial_.reset();
-            lambda_.reset();
-            if (dat.obj_) {
-                obj_ = std::move(dat.obj_);
-            } else if (dat.str_) {
-                str_ = std::move(dat.str_);
-            } else if (dat.list_) {
-                list_ = std::move(dat.list_);
-            } else if (dat.partial_) {
-                partial_ = std::move(dat.partial_);
-            } else if (dat.lambda_) {
-                lambda_ = std::move(dat.lambda_);
-            }
+            storage_ = std::move(dat.storage_);
             type_ = dat.type_;
             dat.type_ = type::invalid;
         }
@@ -328,26 +259,28 @@ public:
 
     // Object data
     bool is_empty_object() const {
-        return is_object() && obj_->empty();
+        return is_object() && std::get_if<basic_object<string_type>>(&storage_)->empty();
     }
     bool is_non_empty_object() const {
-        return is_object() && !obj_->empty();
+        return is_object() && !std::get_if<basic_object<string_type>>(&storage_)->empty();
     }
     void set(const string_type& name, const basic_data& var) {
         if (is_object()) {
-            auto it = obj_->find(name);
-            if (it != obj_->end()) {
-                obj_->erase(it);
+            auto* obj = std::get_if<basic_object<string_type>>(&storage_);
+            auto it = obj->find(name);
+            if (it != obj->end()) {
+                obj->erase(it);
             }
-            obj_->insert(std::pair<string_type,basic_data>{name, var});
+            obj->emplace(name, var);
         }
     }
     const basic_data* get(const string_type& name) const {
         if (!is_object()) {
             return nullptr;
         }
-        const auto& it = obj_->find(name);
-        if (it == obj_->end()) {
+        const auto* obj = std::get_if<basic_object<string_type>>(&storage_);
+        const auto& it = obj->find(name);
+        if (it == obj->end()) {
             return nullptr;
         }
         return &it->second;
@@ -356,17 +289,17 @@ public:
     // List data
     void push_back(const basic_data& var) {
         if (is_list()) {
-            list_->push_back(var);
+            std::get_if<basic_list<string_type>>(&storage_)->push_back(var);
         }
     }
     const basic_list<string_type>& list_value() const {
-        return *list_;
+        return *std::get_if<basic_list<string_type>>(&storage_);
     }
     bool is_empty_list() const {
-        return is_list() && list_->empty();
+        return is_list() && list_value().empty();
     }
     bool is_non_empty_list() const {
-        return is_list() && !list_->empty();
+        return is_list() && !list_value().empty();
     }
     basic_data& operator<< (const basic_data& data) {
         push_back(data);
@@ -375,32 +308,36 @@ public:
 
     // String data
     const string_type& string_value() const {
-        return *str_;
+        return *std::get_if<string_type>(&storage_);
     }
 
     basic_data& operator[] (const string_type& key) {
-        return (*obj_)[key];
+        return (*std::get_if<basic_object<string_type>>(&storage_))[key];
     }
 
     const basic_partial<string_type>& partial_value() const {
-        return (*partial_);
+        return *std::get_if<basic_partial<string_type>>(&storage_);
     }
 
     const basic_lambda<string_type>& lambda_value() const {
-        return lambda_->type1_value();
+        return std::get_if<basic_lambda_t<string_type>>(&storage_)->type1_value();
     }
 
     const basic_lambda2<string_type>& lambda2_value() const {
-        return lambda_->type2_value();
+        return std::get_if<basic_lambda_t<string_type>>(&storage_)->type2_value();
     }
-
 private:
     type type_;
-    std::unique_ptr<basic_object<string_type>> obj_;
-    std::unique_ptr<string_type> str_;
-    std::unique_ptr<basic_list<string_type>> list_;
-    std::unique_ptr<basic_partial<string_type>> partial_;
-    std::unique_ptr<basic_lambda_t<string_type>> lambda_;
+
+    using variant_type = std::variant<
+        basic_object<string_type>,
+        string_type,
+        basic_list<string_type>,
+        basic_partial<string_type>,
+        basic_lambda_t<string_type>
+        >;
+
+    variant_type storage_;
 };
 
 template <typename string_type>
@@ -1165,6 +1102,23 @@ private:
     component<string_type> root_component_;
     escape_handler escape_;
 };
+
+template <typename string_type>
+basic_data<string_type>::basic_data(type t) : type_{t} {
+    switch (type_) {
+        case type::object:
+            storage_.template emplace<basic_object<string_type>>();
+            break;
+        case type::string:
+            storage_.template emplace<string_type>();
+            break;
+        case type::list:
+            storage_.template emplace<basic_list<string_type>>();
+            break;
+        default:
+            break;
+    }
+}
 
 using mustache = basic_mustache<std::string>;
 using data = basic_data<mustache::string_type>;
